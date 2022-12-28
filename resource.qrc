@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>img/icons8-collapse-arrow-32.png</file>
+    <file>img/icons8-expand-arrow-32.png</file>
+    <file>img/icons8-plus-32.png</file>
+    <file>img/icons8-drag-32.png</file>
+    <file>img/icons8-enlarge-32.png</file>
+    <file>img/icons8-vertical-and-horizontal-32.png</file>
+    <file>img/icons8-close-32.png</file>
+  </qresource>
+</RCC>
