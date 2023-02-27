@@ -1,13 +1,15 @@
+import math
 import os
 import sys
 from functools import partial
 
-from PySide2.QtCore import QPointF, QEvent, Qt, QSize
-from PySide2.QtGui import QPixmap, QPainter, QColor, QPen, QResizeEvent
-from PySide2.QtWidgets import QMainWindow, QSizeGrip, QApplication, QMenu, QAction
+from PySide6.QtCore import QPointF, QEvent, Qt, QSize, QPoint, QRect
+from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QResizeEvent, QAction, QPainterPath
+from PySide6.QtWidgets import QMainWindow, QSizeGrip, QApplication, QMenu
 
 import main_ui
 import Container
+import Drawing
 
 
 def resource_path(relative_path):
@@ -26,9 +28,12 @@ ALPHA_POOL = [0, 25, 50, 75, 100]
 def show_window(x=None, y=None):
     w = Window()
     if x is not None and y is not None:
-        w.setGeometry(x+50, y+50, 800, 600)
+        w.setGeometry(x + 50, y + 50, 800, 600)
     w.show()
     w.draw_pixmap()
+
+
+DIRECTION_POOL = [QPoint(1, 1), QPoint(-1, 1), QPoint(-1, -1), QPoint(1, -1)]
 
 
 def draw_rule_thirds(rect_size: QSize, width: int = 2, color: QColor = Qt.white, alpha: int = 128):
@@ -44,6 +49,7 @@ def draw_rule_thirds(rect_size: QSize, width: int = 2, color: QColor = Qt.white,
     pen = QPen(color, width)
     pen.setStyle(Qt.DotLine)
     painter.setPen(pen)
+
     painter.drawLine(0, h / 3, w, h / 3)
     painter.drawLine(0, 2 * h / 3, w, 2 * h / 3)
     painter.drawLine(w / 3, 0, w / 3, h)
@@ -59,6 +65,24 @@ def draw_rule_thirds(rect_size: QSize, width: int = 2, color: QColor = Qt.white,
     painter.drawLine(0, h, 0, h - 25)
     painter.drawLine(w, h, w - 25, h)
     painter.drawLine(w, h, w, h - 25)
+
+    painter.end()
+    return pixmap
+
+THIRDS_PATH = Drawing.RuleOfThirds()
+
+def draw_rule_thirds_new(rect_size: QSize, width: int = 2, color: QColor = Qt.white, alpha: int = 128):
+    pixmap = QPixmap(rect_size)
+    pixmap.fill(Qt.transparent)
+
+    painter = QPainter(pixmap)
+    color.setAlpha(alpha)
+
+    pen = QPen(color, width)
+    pen.setStyle(Qt.DotLine)
+    painter.setPen(pen)
+
+    painter.drawPath(THIRDS_PATH.path)
 
     painter.end()
     return pixmap
@@ -83,6 +107,7 @@ class Window(QMainWindow):
         self.current_color_index = -1
         self.current_color = None
         self.current_alpha = 128
+        self.rules = Drawing.RuleOfThirds(self.ui.label.geometry().topLeft())
 
         self.connect_event()
 
@@ -132,7 +157,8 @@ class Window(QMainWindow):
         self.clickPosition = event.globalPosition()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
-        self.draw_pixmap()
+        # self.draw_pixmap()
+        self.rules.scale_fit(self.geometry().size())
 
     def eventFilter(self, source, event):
         if source == self.ui.label_Move and event.type() == QEvent.MouseMove:
@@ -145,6 +171,15 @@ class Window(QMainWindow):
 
         return super().eventFilter(source, event)
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        pen = QPen(self.current_color, self.current_width)
+        pen.setStyle(Qt.DotLine)
+
+        painter.setPen(pen)
+        painter.drawPath(self.rules.path)
+        painter.end()
+
     def menu_color_request(self, pos):
         self.menu_color.exec(self.ui.btn_SwitchImage.mapToGlobal(pos))
 
@@ -155,12 +190,12 @@ class Window(QMainWindow):
         self.menu_alpha.exec(self.ui.slider_Opacity.mapToGlobal(pos))
 
     def draw_pixmap(self):
-        new_pix = draw_rule_thirds(self.ui.label.size(),
-                                   width=self.current_width,
-                                   color=self.current_color,
-                                   alpha=self.current_alpha)
-
-        self.ui.label.setPixmap(new_pix)
+        # new_pix = draw_rule_thirds_new(self.ui.label.size(),
+        #                            width=self.current_width,
+        #                            color=self.current_color,
+        #                            alpha=self.current_alpha)
+        # self.ui.label.setPixmap(new_pix)
+        pass
 
     def change_opacity(self, value):
         self.current_alpha = value * 0.01 * 255
@@ -205,4 +240,4 @@ if __name__ == '__main__':
         _style = f.read()
         app.setStyleSheet(_style)
     show_window()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
