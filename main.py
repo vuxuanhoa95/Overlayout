@@ -1,10 +1,9 @@
-import math
 import os
 import sys
 from functools import partial
 
-from PySide6.QtCore import QPointF, QEvent, Qt, QSize, QPoint, QRect
-from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QResizeEvent, QAction, QPainterPath
+from PySide6.QtCore import QPointF, QEvent, Qt, QSize
+from PySide6.QtGui import QPainter, QColor, QPen, QResizeEvent, QAction
 from PySide6.QtWidgets import QMainWindow, QSizeGrip, QApplication, QMenu
 
 import main_ui
@@ -25,67 +24,15 @@ WIDTH_POOL = [2, 4, 6, 8, 10]
 ALPHA_POOL = [0, 25, 50, 75, 100]
 
 
-def show_window(x=None, y=None):
+def show_window(x=None, y=None, width=640, height=360):
     w = Window()
-    if x is not None and y is not None:
-        w.setGeometry(x + 50, y + 50, 800, 600)
+
+    if None not in (x, y):
+        w.setGeometry(x + 50, y + 50, width, height)
+
     w.show()
-    w.draw_pixmap()
-
-
-DIRECTION_POOL = [QPoint(1, 1), QPoint(-1, 1), QPoint(-1, -1), QPoint(1, -1)]
-
-
-def draw_rule_thirds(rect_size: QSize, width: int = 2, color: QColor = Qt.white, alpha: int = 128):
-    h = rect_size.height()
-    w = rect_size.width()
-
-    pixmap = QPixmap(rect_size)
-    pixmap.fill(Qt.transparent)
-
-    painter = QPainter(pixmap)
-    color.setAlpha(alpha)
-
-    pen = QPen(color, width)
-    pen.setStyle(Qt.DotLine)
-    painter.setPen(pen)
-
-    painter.drawLine(0, h / 3, w, h / 3)
-    painter.drawLine(0, 2 * h / 3, w, 2 * h / 3)
-    painter.drawLine(w / 3, 0, w / 3, h)
-    painter.drawLine(2 * w / 3, 0, 2 * w / 3, h)
-
-    pen = QPen(color, 2 * width)
-    painter.setPen(pen)
-    painter.drawLine(0, 0, 25, 0)
-    painter.drawLine(0, 0, 0, 25)
-    painter.drawLine(w, 0, w - 25, 0)
-    painter.drawLine(w, 0, w, 25)
-    painter.drawLine(0, h, 25, h)
-    painter.drawLine(0, h, 0, h - 25)
-    painter.drawLine(w, h, w - 25, h)
-    painter.drawLine(w, h, w, h - 25)
-
-    painter.end()
-    return pixmap
-
-THIRDS_PATH = Drawing.RuleOfThirds()
-
-def draw_rule_thirds_new(rect_size: QSize, width: int = 2, color: QColor = Qt.white, alpha: int = 128):
-    pixmap = QPixmap(rect_size)
-    pixmap.fill(Qt.transparent)
-
-    painter = QPainter(pixmap)
-    color.setAlpha(alpha)
-
-    pen = QPen(color, width)
-    pen.setStyle(Qt.DotLine)
-    painter.setPen(pen)
-
-    painter.drawPath(THIRDS_PATH.path)
-
-    painter.end()
-    return pixmap
+    w.resize(width, height)
+    w.repaint()
 
 
 class Window(QMainWindow):
@@ -107,7 +54,7 @@ class Window(QMainWindow):
         self.current_color_index = -1
         self.current_color = None
         self.current_alpha = 128
-        self.rules = Drawing.RuleOfThirds(self.ui.label.geometry().topLeft())
+        self.rules = Drawing.RuleOfThirds(self.ui.label.geometry())
 
         self.connect_event()
 
@@ -131,7 +78,6 @@ class Window(QMainWindow):
 
         self.switch_color_style(False)
         self.switch_width(False)
-        self.draw_pixmap()
 
         container = Container.SectionExpandButton(self.ui.widget_Settings, expanded_size=QSize(0, 23))
         self.ui.layout_BR.insertWidget(0, container)
@@ -141,7 +87,7 @@ class Window(QMainWindow):
         self.ui.btn_Exit.clicked.connect(self.close)
         self.ui.btn_SwitchImage.clicked.connect(lambda: self.switch_color_style())
         self.ui.btn_SwitchWidth.clicked.connect(lambda: self.switch_width())
-        self.ui.btn_Add.clicked.connect(lambda: show_window(self.x(), self.y()))
+        self.ui.btn_Add.clicked.connect(lambda: show_window(self.x(), self.y(), self.width(), self.height()))
 
         self.ui.btn_SwitchImage.customContextMenuRequested.connect(self.menu_color_request)
         self.ui.btn_SwitchWidth.customContextMenuRequested.connect(self.menu_width_request)
@@ -157,8 +103,8 @@ class Window(QMainWindow):
         self.clickPosition = event.globalPosition()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
-        # self.draw_pixmap()
-        self.rules.scale_fit(self.geometry().size())
+        self.rules.draw(self.ui.label.geometry())
+        self.update()
 
     def eventFilter(self, source, event):
         if source == self.ui.label_Move and event.type() == QEvent.MouseMove:
@@ -180,6 +126,8 @@ class Window(QMainWindow):
         painter.drawPath(self.rules.path)
         painter.end()
 
+        super().paintEvent(event)
+
     def menu_color_request(self, pos):
         self.menu_color.exec(self.ui.btn_SwitchImage.mapToGlobal(pos))
 
@@ -189,17 +137,10 @@ class Window(QMainWindow):
     def menu_opacity_request(self, pos):
         self.menu_alpha.exec(self.ui.slider_Opacity.mapToGlobal(pos))
 
-    def draw_pixmap(self):
-        # new_pix = draw_rule_thirds_new(self.ui.label.size(),
-        #                            width=self.current_width,
-        #                            color=self.current_color,
-        #                            alpha=self.current_alpha)
-        # self.ui.label.setPixmap(new_pix)
-        pass
-
     def change_opacity(self, value):
         self.current_alpha = value * 0.01 * 255
-        self.draw_pixmap()
+        self.current_color.setAlpha(self.current_alpha)
+        self.update()
 
     def switch_color_style(self, redraw=True, color: QColor = None):
         if color is None:
@@ -214,8 +155,9 @@ class Window(QMainWindow):
             if color in COLOR_POOL:
                 self.current_color_index = COLOR_POOL.index(color)
 
+        self.current_color.setAlpha(self.current_alpha)
         if redraw:
-            self.draw_pixmap()
+            self.update()
 
     def switch_width(self, redraw=True, width: int = None):
         if width is None:
@@ -230,14 +172,17 @@ class Window(QMainWindow):
                 self.current_width_index = WIDTH_POOL.index(width)
 
         if redraw:
-            self.draw_pixmap()
+            self.update()
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     app = QApplication([])
+
     with open(RESOURCE + "style.qss", "r") as f:
         _style = f.read()
         app.setStyleSheet(_style)
+
     show_window()
+
     sys.exit(app.exec())

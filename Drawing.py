@@ -2,7 +2,7 @@ from math import sqrt
 
 from PySide6.QtCore import QSize, QPoint, QRect, Qt
 from PySide6.QtGui import QPainter, QPainterPath, QPen, QTransform
-from PySide6.QtWidgets import QWidget, QApplication
+from PySide6.QtWidgets import QWidget, QApplication, QFrame
 
 S2 = sqrt(2)
 S_CUBIC = 4 / 3 * (S2 - 1)
@@ -111,38 +111,27 @@ class GoldenRatio:
 
 class RuleOfThirds:
 
-    def __init__(self, pivot: QPoint = QPoint(0, 0)):
-        r = QTransform()
-        r.rotate(90)
+    def __init__(self, rect: QRect):
+        self.path = None
+        self.draw(rect)
 
-        ty = QTransform()
-        ty.translate(0, 100)
-
-        tx = QTransform()
-        tx.translate(100, 0)
-
-        pathx = QPainterPath()
-        pathx.lineTo(300, 0)
-        pathy = r.map(pathx)
-
-        pathr1 = ty.map(pathx)
-        pathr2 = ty.map(pathr1)
-
-        pathc1 = tx.map(pathy)
-        pathc2 = tx.map(pathc1)
+    def draw(self, rect: QRect):
+        width = rect.width()
+        height = rect.height()
 
         self.path = QPainterPath()
-        for p in [pathr1, pathr2, pathc1, pathc2]:
-            self.path.addPath(p)
 
-        # self.path.translate(0, 27/2)
-        pass
+        self.path.moveTo(width / 3, 0)
+        self.path.lineTo(width / 3, height)
+        self.path.moveTo(2 * width / 3, 0)
+        self.path.lineTo(2 * width / 3, height)
 
-    def scale_fit(self, size: QSize):
-        old_size = self.path.boundingRect().size()
-        s = QTransform()
-        s.scale(size.width() / old_size.width(), size.height() / old_size.height())
-        self.path = s.map(self.path)
+        self.path.moveTo(0, height / 3)
+        self.path.lineTo(width, height / 3)
+        self.path.moveTo(0, 2 * height / 3)
+        self.path.lineTo(width, 2 * height / 3)
+
+        self.path.translate(rect.topLeft())
 
 
 class SpiralWidget(QWidget):
